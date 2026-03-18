@@ -28,36 +28,48 @@ def simulate_sensors():
         ph = round(generate_sine_wave(0.2, 0.02, 7.2), 2)
         if step % 15 == 0: ph = 5.8  # Simulate Acidity Alert
 
-        # 3. Flow: Fluctuates based on "demand"
+        # 3. Flow & Pressure
         flow = round(generate_sine_wave(5, 0.1, 10), 1)
+        pressure = round(generate_sine_wave(2, 0.05, 60), 1)
         
         # 4. UV Status & Leak Logic
-        # Simulate a leak: High flow but UV is OFF
-        uv_status = "ON"
+        uv_status = True
+        leak_detected = False
         if step % 25 == 0:
-            uv_status = "OFF"
-            flow = 12.5 # Forced high flow to trigger "Leak Alert" on dashboard
+            uv_status = False
+            leak_detected = True # Simulate the push button being pressed
+            flow = 12.5 
+            pressure = 20.0 # Huge pressure drop
 
-        # 5. Turbidity & Temp
+        # 5. Turbidity, Temp & DO
         turbidity = round(random.uniform(0.8, 1.5), 2)
         temp = round(generate_sine_wave(2, 0.01, 24), 1)
+        do_level = round(generate_sine_wave(0.5, 0.02, 8.0), 2)
 
-        # 6. GPS: Slight movement (Simulating sensor sway or drift)
-        lat = 22.7196 + (math.sin(step * 0.1) * 0.0005)
-        lng = 75.8577 + (math.cos(step * 0.1) * 0.0005)
+        # 6. GPS: Fixed location since pipelines don't move
+        lat = 22.7196 
+        lng = 75.8577 
 
-        # PREPARE PAYLOAD
+        # --- CORRECTED NESTED PAYLOAD ---
         payload = {
             "device_id": DEVICE_ID,
-            "tds": tds,
-            "ph": ph,
-            "turbidity": turbidity,
-            "flow": flow,
-            "temp": temp,
-            "uv_status": uv_status,
-            "lat": lat,
-            "lng": lng,
-            "gps_active": True
+            "sensors": {
+                "ph": ph,
+                "tds_ppm": tds,
+                "turbidity_ntu": turbidity,
+                "dissolved_o2_mgl": do_level,
+                "temp_c": temp,
+                "flow_rate_lpm": flow,
+                "pressure_psi": pressure
+            },
+            "alerts": {
+                "leak_detected": leak_detected,
+                "uv_active": uv_status
+            },
+            "location": {
+                "lat": lat,
+                "lng": lng
+            }
         }
 
         try:
@@ -66,7 +78,7 @@ def simulate_sensors():
             
             # Professional Console Logging
             timestamp = datetime.now().strftime("%H:%M:%S")
-            print(f"[{timestamp}] Sent Data | pH: {ph} | Flow: {flow} | Health: {health}")
+            print(f"[{timestamp}] Sent Data | pH: {ph:.1f} | Pressure: {pressure:.1f} | Health: {health}")
             
         except requests.exceptions.ConnectionError:
             print("❌ Error: Backend is not running! Start main.py first.")
